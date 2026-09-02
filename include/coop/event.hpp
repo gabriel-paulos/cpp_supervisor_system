@@ -1,15 +1,8 @@
 #pragma once
 
 #include "detail/api.hpp"
-#if defined(__clang__)
-#    include <experimental/coroutine>
-namespace std
-{
-using experimental::coroutine_handle;
-}
-#else
-#    include <coroutine>
-#endif
+#include <atomic>
+#include <coroutine>
 #include <cstdint>
 
 namespace coop
@@ -45,10 +38,33 @@ public:
     }
 #elif (__APPLE__)
     // TODO: MacOS/iOS implementation
+
+    // MacOS is missing event's signaled/unsignaled state, all filters are
+    // transient and consumed after the kevent retrieves it
+
+    // need to make an event state struct for 3 reasons:
+    // 1. State tracking: track config flags
+    // 2. Persistent ref: Need a heap-allocated, shared state block that exists
+    // independently to be able to move, copy or pass by reference an event
+    // 3. Kqueue Ident: we use heap address of the evnt struct as ident for the
+    // kqueue to register and trigger EVFIL_USER.
+
+    struct event_state_t
+    {
+        uintptr_t ident = 0; // ptr address as unique kqueue ident
+        std::atomic<bool> signaled{false};
+        bool manual_reset{false};
+    };
+
+    event_ref_t(void* handle) noexcept
+        : handle_{handle}
+    {
+    }
+
 #endif
-    event_ref_t(event_ref_t&&)      = default;
-    event_ref_t(event_ref_t const&) = default;
-    event_ref_t& operator=(event_ref_t&&) = default;
+    event_ref_t(event_ref_t&&)                 = default;
+    event_ref_t(event_ref_t const&)            = default;
+    event_ref_t& operator=(event_ref_t&&)      = default;
     event_ref_t& operator=(event_ref_t const&) = default;
 
     void init(bool manual_reset = false, char const* label = nullptr);
@@ -73,10 +89,8 @@ public:
 protected:
     friend class event_t;
 
-#if defined(_WIN32) || defined(__linux__)
+#if defined(_WIN32) || defined(__linux__) || defined(__APPLE__)
     void* handle_ = nullptr;
-#elif (__APPLE__)
-    // TODO: MacOS/iOS implementation
 #endif
 };
 
@@ -93,7 +107,7 @@ public:
     // TODO: MacOS/iOS implementation
 #endif
     ~event_t() noexcept;
-    event_t(event_t const& other) = delete;
+    event_t(event_t const& other)            = delete;
     event_t& operator=(event_t const& other) = delete;
     event_t(event_t&& other) noexcept;
     event_t& operator=(event_t&& other) noexcept;

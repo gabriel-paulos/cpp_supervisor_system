@@ -6,7 +6,10 @@
 #include <cstdlib>
 #include <cstring>
 #include <numbers>
+#include <sys/event.h>
+#include <sys/types.h>
 #include <thread>
+#include <unistd.h>
 
 using namespace coop;
 
@@ -45,6 +48,31 @@ scheduler_t::scheduler_t()
     // A high quality PRNG number isn't needed here, as this update counter is
     // used to drive a low discrepancy sequence
     update_ = std::rand();
+
+#ifdef __APPLE__
+    kq_ = kqueue();
+    assert(kq_ != -1 && "Failed to create kqueue");
+
+    event_thread_ = std::thread([this] {
+        active_ = true;
+
+        while (active_)
+        {
+            // dont use wait_many
+
+            //want to wait for event to trigger
+
+            struct kevent triggered; 
+
+            int n = kevent(kq_, &triggered, 1, nullptr, 0, nullptr);
+
+            if(n <= 0){
+                
+            }
+
+        }
+    });
+#endif
 
 #ifdef _WIN32
     event_thread_ = std::thread([this] {
@@ -140,6 +168,12 @@ scheduler_t::scheduler_t()
 scheduler_t::~scheduler_t() noexcept
 {
     active_ = false;
+#ifdef __APPLE__
+    if (kq_ != -1)
+    {
+        (void)::close(kq_);
+    }
+#endif
 #ifdef _WIN32
     events_[0].signal();
     event_thread_.join();

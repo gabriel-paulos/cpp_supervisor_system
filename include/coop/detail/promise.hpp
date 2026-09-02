@@ -4,17 +4,7 @@
 #include <atomic>
 #include <semaphore>
 #include <thread>
-#if defined(__clang__)
-#    include <experimental/coroutine>
-namespace std
-{
-using experimental::coroutine_handle;
-using experimental::noop_coroutine;
-using experimental::suspend_never;
-} // namespace std
-#else
-#    include <coroutine>
-#endif
+#include <coroutine>
 
 namespace coop
 {
@@ -85,7 +75,6 @@ namespace detail
         void await_suspend(std::coroutine_handle<P> coroutine) const noexcept
         {
             coroutine.promise().join_sem.release();
-            coroutine.destroy();
         }
     };
 

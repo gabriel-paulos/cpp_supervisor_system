@@ -8,17 +8,7 @@
 #include <cstdlib>
 #include <functional>
 #include <limits>
-#if defined(__clang__)
-#    include <experimental/coroutine>
-namespace std
-{
-using experimental::coroutine_handle;
-using experimental::noop_coroutine;
-using experimental::suspend_never;
-} // namespace std
-#else
-#    include <coroutine>
-#endif
+#include <coroutine>
 
 namespace coop
 {
@@ -60,12 +50,9 @@ public:
     }
     ~task_t() noexcept
     {
-        if constexpr (!Joinable)
+        if (coroutine_)
         {
-            if (coroutine_)
-            {
-                coroutine_.destroy();
-            }
+            coroutine_.destroy();
         }
     }
 
@@ -104,6 +91,8 @@ public:
                       "parameter "
                       "set");
         coroutine_.promise().join_sem.acquire();
+        coroutine_.destroy();
+        coroutine_ = nullptr;
     }
 
     // When suspending from a coroutine *within* this task's coroutine, save

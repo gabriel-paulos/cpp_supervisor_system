@@ -6,15 +6,7 @@
 #include "event.hpp"
 #include "source_location.hpp"
 #include <atomic>
-#if defined(__clang__)
-#    include <experimental/coroutine>
-namespace std
-{
-using experimental::coroutine_handle;
-}
-#else
-#    include <coroutine>
-#endif
+#include <coroutine>
 #include <cstdint>
 #include <thread>
 
@@ -41,10 +33,10 @@ public:
 
     scheduler_t();
     ~scheduler_t() noexcept;
-    scheduler_t(scheduler_t const&) = delete;
-    scheduler_t(scheduler_t&&)      = delete;
+    scheduler_t(scheduler_t const&)            = delete;
+    scheduler_t(scheduler_t&&)                 = delete;
     scheduler_t& operator=(scheduler_t const&) = delete;
-    scheduler_t&& operator=(scheduler_t&&) = delete;
+    scheduler_t&& operator=(scheduler_t&&)     = delete;
 
     // Schedules a coroutine to be resumed at a later time as soon as a thread
     // is available. If you wish to provide your own custom scheduler, you can
@@ -67,7 +59,7 @@ public:
 
 private:
     friend class detail::work_queue_t;
-
+    friend class event_ref_t;
     struct event_continuation_t
     {
         std::coroutine_handle<> coroutine;
@@ -85,6 +77,10 @@ private:
     size_t temp_storage_size_                  = 0;
     event_continuation_t* temp_storage_        = nullptr;
     moodycamel::ConcurrentQueue<event_continuation_t> pending_events_;
+
+#if defined(__APPLE__)
+    int kq_ = -1;
+#endif
 
     std::atomic<bool> active_;
 

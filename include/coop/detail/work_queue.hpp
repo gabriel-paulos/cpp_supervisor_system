@@ -5,15 +5,7 @@
 #include <atomic>
 #include <coop/source_location.hpp>
 #include <semaphore>
-#if defined(__clang__)
-#    include <experimental/coroutine>
-namespace std
-{
-using experimental::coroutine_handle;
-}
-#else
-#    include <coroutine>
-#endif
+#include <coroutine>
 #include <thread>
 
 // Currently, COOP supports exactly two priority levels, 0 (default) and 1
